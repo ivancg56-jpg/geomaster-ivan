@@ -79,7 +79,7 @@
             50% { transform: translateY(-20px); }
         }
 
-        .map-container {
+        .map-container {                        
             position: relative;
             cursor: crosshair;
             overflow: hidden;
@@ -305,26 +305,26 @@
 
     <script>
         const pairs = [
-            { country: 'Afganistán', capital: 'Kabul', countryId: 1, capitalId: 'B', coords: { x: 42, y: 48 } },
-            { country: 'Arabia Saudí', capital: 'Riad', countryId: 2, capitalId: 'J', coords: { x: 32, y: 60 } },
-            { country: 'Bangladesh', capital: 'Dhaka', countryId: 3, capitalId: 'S', coords: { x: 68, y: 54 } },
-            { country: 'China', capital: 'Beijing (Pekín)', countryId: 4, capitalId: 'D', coords: { x: 78, y: 40 } },
-            { country: 'Corea del Norte', capital: 'Pyongyang', countryId: 5, capitalId: 'M', coords: { x: 85, y: 38 } },
-            { country: 'Corea del Sur', capital: 'Seúl', countryId: 6, capitalId: 'F', coords: { x: 88, y: 41 } },
-            { country: 'Filipinas', capital: 'Manila', countryId: 7, capitalId: 'H', coords: { x: 88, y: 64 } },
-            { country: 'India', capital: 'Nueva Delhi', countryId: 8, capitalId: 'T', coords: { x: 55, y: 54 } },
-            { country: 'Indonesia', capital: 'Yakarta', countryId: 9, capitalId: 'I', coords: { x: 80, y: 80 } },
-            { country: 'Irán', capital: 'Teherán', countryId: 10, capitalId: 'K', coords: { x: 36, y: 47 } },
-            { country: 'Iraq', capital: 'Bagdad', countryId: 11, capitalId: 'L', coords: { x: 34, y: 49 } },
-            { country: 'Japón', capital: 'Tokio', countryId: 12, capitalId: 'A', coords: { x: 92, y: 40 } },
-            { country: 'Kazajistán', capital: 'Astaná', countryId: 13, capitalId: 'R', coords: { x: 48, y: 34 } },
-            { country: 'Malasia', capital: 'Kuala Lumpur', countryId: 14, capitalId: 'N', coords: { x: 76, y: 72 } },
+            { country: 'Afganistán', capital: 'Kabul', countryId: 1, capitalId: 'B', coords: { x: 38, y: 45 } },
+            { country: 'Arabia Saudí', capital: 'Riad', countryId: 2, capitalId: 'J', coords: { x: 28, y: 55 } },
+            { country: 'Bangladesh', capital: 'Dhaka', countryId: 3, capitalId: 'S', coords: { x: 65, y: 50 } },
+            { country: 'China', capital: 'Beijing (Pekín)', countryId: 4, capitalId: 'D', coords: { x: 75, y: 38 } },
+            { country: 'Corea del Norte', capital: 'Pyongyang', countryId: 5, capitalId: 'M', coords: { x: 82, y: 35 } },
+            { country: 'Corea del Sur', capital: 'Seúl', countryId: 6, capitalId: 'F', coords: { x: 85, y: 38 } },
+            { country: 'Filipinas', capital: 'Manila', countryId: 7, capitalId: 'H', coords: { x: 85, y: 58 } },
+            { country: 'India', capital: 'Nueva Delhi', countryId: 8, capitalId: 'T', coords: { x: 55, y: 52 } },
+            { country: 'Indonesia', capital: 'Yakarta', countryId: 9, capitalId: 'I', coords: { x: 78, y: 75 } },
+            { country: 'Irán', capital: 'Teherán', countryId: 10, capitalId: 'K', coords: { x: 35, y: 45 } },
+            { country: 'Iraq', capital: 'Bagdad', countryId: 11, capitalId: 'L', coords: { x: 32, y: 43 } },
+            { country: 'Japón', capital: 'Tokio', countryId: 12, capitalId: 'A', coords: { x: 90, y: 38 } },
+            { country: 'Kazajistán', capital: 'Astaná', countryId: 13, capitalId: 'R', coords: { x: 48, y: 32 } },
+            { country: 'Malasia', capital: 'Kuala Lumpur', countryId: 14, capitalId: 'N', coords: { x: 70, y: 55 } },
             { country: 'Myanmar', capital: 'Naypyidaw', countryId: 15, capitalId: 'P', coords: { x: 70, y: 58 } },
-            { country: 'Pakistán', capital: 'Islamabad', countryId: 16, capitalId: 'C', coords: { x: 46, y: 50 } },
-            { country: 'Siria', capital: 'Damasco', countryId: 17, capitalId: 'O', coords: { x: 30, y: 45 } },
-            { country: 'Tailandia', capital: 'Bangkok', countryId: 18, capitalId: 'E', coords: { x: 73, y: 62 } },
-            { country: 'Taiwán', capital: 'Taipéi', countryId: 19, capitalId: 'Q', coords: { x: 85, y: 50 } },
-            { country: 'Vietnam', capital: 'Hanoi', countryId: 20, capitalId: 'G', coords: { x: 78, y: 56 } }
+            { country: 'Pakistán', capital: 'Islamabad', countryId: 16, capitalId: 'C', coords: { x: 45, y: 48 } },
+            { country: 'Siria', capital: 'Damasco', countryId: 17, capitalId: 'O', coords: { x: 28, y: 42 } },
+            { country: 'Tailandia', capital: 'Bangkok', countryId: 18, capitalId: 'E', coords: { x: 73, y: 58 } },
+            { country: 'Taiwán', capital: 'Taipéi', countryId: 19, capitalId: 'Q', coords: { x: 82, y: 48 } },
+            { country: 'Vietnam', capital: 'Hanoi', countryId: 20, capitalId: 'G', coords: { x: 76, y: 55 } }
         ];
 
         class Game {
@@ -706,3 +706,4 @@
     </script>
 </body>
 </html>
+
