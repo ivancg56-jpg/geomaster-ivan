@@ -703,7 +703,24 @@
         }
 
         const game = new Game();
-    </script>
+    <!-- HERRAMIENTA PARA CALIBRAR COORDENADAS - BORRAR DESPUÉS -->
+<div id="calibrador" style="position:fixed; bottom:10px; right:10px; background:rgba(0,0,0,0.9); color:white; padding:15px; border-radius:10px; z-index:9999; font-family:monospace;">
+  <div style="font-weight:bold; margin-bottom:10px;">🎯 CALIBRADOR DE COORDENADAS</div>
+  <div>Haz clic en el mapa donde esté cada país</div>
+  <div id="coordenadas-actuales" style="color:yellow; margin-top:10px;">Esperando clic...</div>
+  <button onclick="document.getElementById('calibrador').style.display='none'" style="margin-top:10px; padding:5px 10px;">Cerrar</button>
+</div>
+
+<script>
+document.getElementById('map-overlay').addEventListener('click', function(e) {
+  const rect = e.target.getBoundingClientRect();
+  const x = ((e.clientX - rect.left) / rect.width) * 100;
+  const y = ((e.clientY - rect.top) / rect.height) * 100;
+  document.getElementById('coordenadas-actuales').innerHTML = 
+    `x: ${x.toFixed(1)}, y: ${y.toFixed(1)}<br><br>Copia esto:<br>coords: { x: ${Math.round(x)}, y: ${Math.round(y)} }`;
+});
+</script>
 </body>
 </html>
+
 
