@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoMaster: Capitales y Ubicación - Iván Carbonell</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;600;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            overflow-x: hidden;
+        }
+        
+        .font-display {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-style: preserve-3d;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .card:hover:not(.matched):not(.selected) {
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 0 20px rgba(99, 102, 241, 0.3);
+            border-color: rgba(99, 102, 241, 0.5);
+        }
+
+        .card.selected {
+            background: rgba(99, 102, 241, 0.2);
+            border-color: #6366f1;
+            box-shadow: 0 0 30px rgba(99, 102, 241, 0.4);
+            transform: scale(1.05);
+        }
+
+        .card.matched {
+            background: rgba(34, 197, 94, 0.15);
+            border-color: #22c55e;
+            animation: matchPulse 0.6s ease;
+            pointer-events: none;
+        }
+
+        .card.matched::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2rem;
+            color: #22c55e;
+            font-weight: bold;
+            opacity: 0.3;
+        }
+
+        .card.error {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+            background: rgba(239, 68, 68, 0.15);
+            border-color: #ef4444;
+        }
+
+        @keyframes matchPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+
+        .floating {
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .progress-bar {
+            transition: width 0.5s ease;
+        }
+
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            background: #f0f;
+            position: absolute;
+            animation: confetti-fall 3s linear forwards;
+        }
+
+        @keyframes confetti-fall {
+            to {
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+
+        .timer-warning {
+            animation: pulse-red 1s infinite;
+        }
+
+        @keyframes pulse-red {
+            0%, 100% { color: #ef4444; }
+            50% { color: #fca5a5; }
+        }
+
+        .hidden { display: none; }
+    </style>
+<base target="_blank">
+</head>
+<body class="min-h-screen text-white p-4 md:p-8">
+
+    <!-- Background Elements -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none">
+        <div class="absolute top-0 left-1/4 w-96 h-96 bg-indigo-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse"></div>
+        <div class="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" style="animation-delay: 2s"></div>
+    </div>
+
+    <!-- Author Badge - Top Right -->
+    <div class="fixed top-4 right-4 z-50 author-badge rounded-xl px-4 py-3 backdrop-blur-md">
+        <div class="flex items-center gap-3">
+            <div class="text-2xl">👨‍🎓</div>
+            <div>
+                <div class="text-sm font-bold text-yellow-400">Juego creado por</div>
+                <div class="text-base font-bold text-white">Iván Carbonell</div>
+                <div class="text-xs text-yellow-200/80">2E - CEPA Paulo Freire</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="relative z-10 max-w-6xl mx-auto mb-8 text-center">
+        <h1 class="font-display text-5xl md:text-7xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 floating">
+            GEO MATCH
+        </h1>
+        <p class="text-slate-400 text-lg md:text-xl">Une cada país con su capital correspondiente</p>
+    </header>
+
+    <!-- Game Container -->
+    <main class="relative z-10 max-w-6xl mx-auto">
+        
+        <!-- Stats Bar -->
+        <div class="glass-panel rounded-2xl p-6 mb-6 flex flex-wrap justify-between items-center gap-4">
+            <div class="flex items-center gap-6">
+                <div class="text-center">
+                    <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">Tiempo</div>
+                    <div id="timer" class="font-display text-3xl font-bold text-indigo-400">00:00</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">Pares</div>
+                    <div class="font-display text-3xl font-bold text-emerald-400">
+                        <span id="matches-count">0</span><span class="text-slate-600">/</span><span id="total-pairs">20</span>
+                    </div>
+                </div>
+                <div class="text-center">
+                    <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">Intentos</div>
+                    <div id="attempts" class="font-display text-3xl font-bold text-pink-400">0</div>
+                </div>
+            </div>
+            
+            <div class="flex gap-3">
+                <button onclick="game.shuffle()" class="px-6 py-3 rounded-xl bg-slate-700 hover:bg-slate-600 transition-colors font-semibold text-sm uppercase tracking-wider border border-slate-600">
+                    ↻ Mezclar
+                </button>
+                <button onclick="game.restart()" class="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 transition-colors font-semibold text-sm uppercase tracking-wider shadow-lg shadow-indigo-500/30">
+                    Reiniciar
+                </button>
+            </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="w-full h-2 bg-slate-800 rounded-full mb-8 overflow-hidden">
+            <div id="progress" class="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 w-0 progress-bar"></div>
+        </div>
+
+        <!-- Game Grid -->
+        <div id="game-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
+            <!-- Cards generated by JS -->
+        </div>
+
+    </main>
+
+    <!-- Victory Modal -->
+    <div id="victory-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm hidden opacity-0 transition-opacity duration-500">
+        <div class="glass-panel rounded-3xl p-8 md:p-12 max-w-md w-full mx-4 text-center transform scale-90 transition-transform duration-500" id="victory-content">
+            <div class="text-6xl mb-4">🎉</div>
+            <h2 class="font-display text-4xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-orange-500">
+                ¡Completado!
+            </h2>
+            <p class="text-slate-300 mb-6">Has emparejado todas las capitales correctamente</p>
+            
+            <div class="grid grid-cols-2 gap-4 mb-8">
+                <div class="bg-slate-800/50 rounded-xl p-4">
+                    <div class="text-xs text-slate-400 uppercase">Tiempo Final</div>
+                    <div id="final-time" class="text-2xl font-bold text-indigo-400">00:00</div>
+                </div>
+                <div class="bg-slate-800/50 rounded-xl p-4">
+                    <div class="text-xs text-slate-400 uppercase">Precisión</div>
+                    <div id="accuracy" class="text-2xl font-bold text-emerald-400">100%</div>
+                </div>
+            </div>
+
+            <button onclick="game.restart()" class="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 transition-all font-bold text-lg shadow-xl shadow-indigo-500/30 transform hover:scale-105">
+                Jugar de Nuevo
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // CORRECCIÓN: Emparejamientos correctos según la tabla proporcionada
+        const pairs = [
+            { country: 'Afganistán', capital: 'Kabul', countryId: 1, capitalId: 'B' },           // 1-B
+            { country: 'Arabia Saudí', capital: 'Riad', countryId: 2, capitalId: 'J' },          // 2-J
+            { country: 'Bangladesh', capital: 'Dhaka', countryId: 3, capitalId: 'S' },           // 3-S
+            { country: 'China', capital: 'Beijing (Pekín)', countryId: 4, capitalId: 'D' },      // 4-D
+            { country: 'Corea del Norte', capital: 'Pyongyang', countryId: 5, capitalId: 'M' },  // 5-M
+            { country: 'Corea del Sur', capital: 'Seúl', countryId: 6, capitalId: 'F' },         // 6-F
+            { country: 'Filipinas', capital: 'Manila', countryId: 7, capitalId: 'H' },           // 7-H
+            { country: 'India', capital: 'Nueva Delhi', countryId: 8, capitalId: 'T' },          // 8-T
+            { country: 'Indonesia', capital: 'Yakarta', countryId: 9, capitalId: 'I' },          // 9-I
+            { country: 'Irán', capital: 'Teherán', countryId: 10, capitalId: 'K' },              // 10-K
+            { country: 'Iraq', capital: 'Bagdad', countryId: 11, capitalId: 'L' },               // 11-L
+            { country: 'Japón', capital: 'Tokio', countryId: 12, capitalId: 'A' },               // 12-A
+            { country: 'Kazajistán', capital: 'Astaná', countryId: 13, capitalId: 'R' },         // 13-R
+            { country: 'Malasia', capital: 'Kuala Lumpur', countryId: 14, capitalId: 'N' },      // 14-N
+            { country: 'Myanmar', capital: 'Naypyidaw', countryId: 15, capitalId: 'P' },         // 15-P
+            { country: 'Pakistán', capital: 'Islamabad', countryId: 16, capitalId: 'C' },        // 16-C
+            { country: 'Siria', capital: 'Damasco', countryId: 17, capitalId: 'O' },             // 17-O
+            { country: 'Tailandia', capital: 'Bangkok', countryId: 18, capitalId: 'E' },         // 18-E
+            { country: 'Taiwán', capital: 'Taipéi', countryId: 19, capitalId: 'Q' },             // 19-Q
+            { country: 'Vietnam', capital: 'Hanoi', countryId: 20, capitalId: 'G' }              // 20-G
+        ];
+
+        class Game {
+            constructor() {
+                this.selectedCards = [];
+                this.matchedPairs = 0;
+                this.attempts = 0;
+                this.isProcessing = false;
+                this.timer = 0;
+                this.timerInterval = null;
+                this.cards = [];
+                
+                this.init();
+            }
+
+            init() {
+                this.createCards();
+                this.startTimer();
+                this.updateStats();
+            }
+
+            createCards() {
+                const grid = document.getElementById('game-grid');
+                grid.innerHTML = '';
+                this.cards = [];
+
+                // Create card objects
+                pairs.forEach(pair => {
+                    // Country card
+                    this.cards.push({
+                        type: 'country',
+                        text: pair.country,
+                        id: pair.countryId,
+                        matchId: pair.capitalId,
+                        displayNum: pair.countryId + '.'
+                    });
+                    
+                    // Capital card
+                    this.cards.push({
+                        type: 'capital',
+                        text: pair.capital,
+                        id: pair.capitalId,
+                        matchId: pair.countryId,
+                        displayNum: pair.capitalId + '.'
+                    });
+                });
+
+                this.shuffle();
+            }
+
+            shuffle() {
+                // Fisher-Yates shuffle
+                for (let i = this.cards.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [this.cards[i], this.cards[j]] = [this.cards[j], this.cards[i]];
+                }
+                this.render();
+            }
+
+            render() {
+                const grid = document.getElementById('game-grid');
+                grid.innerHTML = '';
+
+                this.cards.forEach((card, index) => {
+                    const cardEl = document.createElement('div');
+                    cardEl.className = `card glass-panel rounded-xl p-4 md:p-6 min-h-[100px] md:min-h-[120px] flex flex-col justify-center items-center text-center select-none border-2 border-transparent`;
+                    cardEl.dataset.index = index;
+                    cardEl.dataset.type = card.type;
+                    cardEl.dataset.id = card.id;
+                    cardEl.dataset.matchId = card.matchId;
+
+                    const isCountry = card.type === 'country';
+                    const badgeColor = isCountry ? 'bg-indigo-500/20 text-indigo-300' : 'bg-pink-500/20 text-pink-300';
+                    const label = isCountry ? 'PAÍS' : 'CAPITAL';
+
+                    cardEl.innerHTML = `
+                        <div class="text-xs font-bold ${badgeColor} px-2 py-1 rounded-full mb-2 uppercase tracking-wider">${label}</div>
+                        <div class="font-display text-lg md:text-xl font-bold leading-tight">${card.text}</div>
+                        <div class="absolute top-2 right-2 text-xs text-slate-500 font-mono">${card.displayNum}</div>
+                    `;
+
+                    cardEl.addEventListener('click', () => this.handleCardClick(index));
+                    grid.appendChild(cardEl);
+                });
+            }
+
+            handleCardClick(index) {
+                if (this.isProcessing) return;
+                
+                const cardEl = document.querySelector(`[data-index="${index}"]`);
+                if (cardEl.classList.contains('matched') || cardEl.classList.contains('selected')) return;
+
+                // Select card
+                cardEl.classList.add('selected');
+                this.selectedCards.push({ index, element: cardEl, data: this.cards[index] });
+
+                if (this.selectedCards.length === 2) {
+                    this.attempts++;
+                    this.updateStats();
+                    this.checkMatch();
+                }
+            }
+
+            checkMatch() {
+                this.isProcessing = true;
+                const [card1, card2] = this.selectedCards;
+                
+                // CORRECCIÓN: Lógica de emparejamiento verificada
+                // Un país empareja con su capital si:
+                // - card1 es país (número) y card2 es capital (letra) Y card1.id (número) === card2.matchId (número del país que le corresponde)
+                // - O viceversa
+                const isMatch = (card1.data.type === 'country' && card2.data.type === 'capital' && card1.data.id === card2.data.matchId) ||
+                               (card1.data.type === 'capital' && card2.data.type === 'country' && card1.data.matchId === card2.data.id);
+
+                if (isMatch) {
+                    // Match!
+                    setTimeout(() => {
+                        card1.element.classList.remove('selected');
+                        card2.element.classList.remove('selected');
+                        card1.element.classList.add('matched');
+                        card2.element.classList.add('matched');
+                        
+                        this.matchedPairs++;
+                        this.updateStats();
+                        this.createConfetti(card1.element);
+                        this.createConfetti(card2.element);
+                        
+                        this.selectedCards = [];
+                        this.isProcessing = false;
+
+                        if (this.matchedPairs === pairs.length) {
+                            this.victory();
+                        }
+                    }, 500);
+                } else {
+                    // No match
+                    setTimeout(() => {
+                        card1.element.classList.add('error');
+                        card2.element.classList.add('error');
+                        
+                        setTimeout(() => {
+                            card1.element.classList.remove('selected', 'error');
+                            card2.element.classList.remove('selected', 'error');
+                            this.selectedCards = [];
+                            this.isProcessing = false;
+                        }, 800);
+                    }, 400);
+                }
+            }
+
+            createConfetti(element) {
+                const rect = element.getBoundingClientRect();
+                for (let i = 0; i < 10; i++) {
+                    const confetti = document.createElement('div');
+                    confetti.className = 'confetti';
+                    confetti.style.left = rect.left + rect.width / 2 + 'px';
+                    confetti.style.top = rect.top + rect.height / 2 + 'px';
+                    confetti.style.backgroundColor = ['#6366f1', '#ec4899', '#22c55e', '#f59e0b'][Math.floor(Math.random() * 4)];
+                    confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
+                    document.body.appendChild(confetti);
+                    setTimeout(() => confetti.remove(), 3000);
+                }
+            }
+
+            startTimer() {
+                this.timerInterval = setInterval(() => {
+                    this.timer++;
+                    const mins = Math.floor(this.timer / 60).toString().padStart(2, '0');
+                    const secs = (this.timer % 60).toString().padStart(2, '0');
+                    document.getElementById('timer').textContent = `${mins}:${secs}`;
+                    
+                    if (this.timer > 180) { // 3 minutes warning
+                        document.getElementById('timer').classList.add('timer-warning');
+                    }
+                }, 1000);
+            }
+
+            updateStats() {
+                document.getElementById('matches-count').textContent = this.matchedPairs;
+                document.getElementById('attempts').textContent = this.attempts;
+                
+                const progress = (this.matchedPairs / pairs.length) * 100;
+                document.getElementById('progress').style.width = progress + '%';
+            }
+
+            victory() {
+                clearInterval(this.timerInterval);
+                
+                const mins = Math.floor(this.timer / 60).toString().padStart(2, '0');
+                const secs = (this.timer % 60).toString().padStart(2, '0');
+                document.getElementById('final-time').textContent = `${mins}:${secs}`;
+                
+                const accuracy = Math.round((pairs.length / this.attempts) * 100) || 100;
+                document.getElementById('accuracy').textContent = accuracy + '%';
+
+                const modal = document.getElementById('victory-modal');
+                const content = document.getElementById('victory-content');
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    modal.classList.remove('opacity-0');
+                    content.classList.remove('scale-90');
+                    content.classList.add('scale-100');
+                }, 10);
+
+                // Massive confetti
+                for (let i = 0; i < 50; i++) {
+                    setTimeout(() => {
+                        const confetti = document.createElement('div');
+                        confetti.className = 'confetti';
+                        confetti.style.left = Math.random() * window.innerWidth + 'px';
+                        confetti.style.top = '-10px';
+                        confetti.style.backgroundColor = ['#6366f1', '#ec4899', '#22c55e', '#f59e0b', '#8b5cf6'][Math.floor(Math.random() * 5)];
+                        document.body.appendChild(confetti);
+                        setTimeout(() => confetti.remove(), 3000);
+                    }, i * 50);
+                }
+            }
+
+            restart() {
+                clearInterval(this.timerInterval);
+                this.selectedCards = [];
+                this.matchedPairs = 0;
+                this.attempts = 0;
+                this.isProcessing = false;
+                this.timer = 0;
+                document.getElementById('timer').textContent = '00:00';
+                document.getElementById('timer').classList.remove('timer-warning');
+                
+                const modal = document.getElementById('victory-modal');
+                modal.classList.add('opacity-0');
+                setTimeout(() => modal.classList.add('hidden'), 500);
+                
+                this.init();
+            }
+        }
+
+        const game = new Game();
+    </script>
+</body>
+</html>
