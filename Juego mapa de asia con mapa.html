@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoMaster: Capitales y Ubicación - Iván Carbonell</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;600;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            overflow-x: hidden;
+        }
+        
+        .font-display {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-style: preserve-3d;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .card:hover:not(.matched):not(.selected) {
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 0 20px rgba(99, 102, 241, 0.3);
+            border-color: rgba(99, 102, 241, 0.5);
+        }
+
+        .card.selected {
+            background: rgba(99, 102, 241, 0.2);
+            border-color: #6366f1;
+            box-shadow: 0 0 30px rgba(99, 102, 241, 0.4);
+            transform: scale(1.05);
+        }
+
+        .card.matched {
+            background: rgba(34, 197, 94, 0.15);
+            border-color: #22c55e;
+            animation: matchPulse 0.6s ease;
+            pointer-events: none;
+            opacity: 0.6;
+        }
+
+        @keyframes matchPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .card.error {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+            background: rgba(239, 68, 68, 0.15);
+            border-color: #ef4444;
+        }
+
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+
+        .floating {
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .map-container {
+            position: relative;
+            cursor: crosshair;
+            overflow: hidden;
+            background: #e0f2fe;
+            min-height: 400px;
+        }
+
+        .map-marker {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .map-marker.user {
+            background: #ef4444;
+            border: 4px solid white;
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.9);
+            animation: dropIn 0.3s ease;
+        }
+
+        .map-marker.correct {
+            background: #22c55e;
+            border: 4px solid white;
+            box-shadow: 0 0 15px rgba(34, 197, 94, 0.9);
+            animation: correctPulse 0.6s ease;
+        }
+
+        @keyframes dropIn {
+            0% { transform: translate(-50%, -50%) scale(0); }
+            50% { transform: translate(-50%, -50%) scale(1.3); }
+            100% { transform: translate(-50%, -50%) scale(1); }
+        }
+
+        @keyframes correctPulse {
+            0% { transform: translate(-50%, -50%) scale(0); }
+            60% { transform: translate(-50%, -50%) scale(1.4); }
+            100% { transform: translate(-50%, -50%) scale(1); }
+        }
+
+        .distance-line {
+            position: absolute;
+            height: 3px;
+            background: repeating-linear-gradient(90deg, #ef4444 0px, #ef4444 8px, transparent 8px, transparent 16px);
+            transform-origin: left center;
+            pointer-events: none;
+            z-index: 5;
+            opacity: 0.8;
+        }
+
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            background: #f0f;
+            animation: confetti-fall 3s linear forwards;
+        }
+
+        @keyframes confetti-fall {
+            to {
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+
+        .phase-indicator {
+            transition: all 0.3s ease;
+        }
+
+        .phase-active {
+            background: rgba(99, 102, 241, 0.3);
+            border-color: #6366f1;
+            color: white;
+        }
+
+        .author-badge {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.4);
+        }
+
+        .hidden { display: none !important; }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="min-h-screen text-white p-4 md:p-8">
+
+    <!-- Background Elements -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none">
+        <div class="absolute top-0 left-1/4 w-96 h-96 bg-indigo-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse"></div>
+        <div class="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" style="animation-delay: 2s"></div>
+    </div>
+
+    <!-- Author Badge - Destacado -->
+    <div class="relative z-10 max-w-7xl mx-auto mb-4 flex justify-center">
+        <div class="author-badge rounded-2xl px-8 py-4 text-center transform hover:scale-105 transition-transform cursor-default">
+            <div class="text-xs text-indigo-200 uppercase tracking-widest mb-1">Proyecto Educativo</div>
+            <div class="font-display text-2xl md:text-3xl font-bold text-white">Iván Carbonell</div>
+            <div class="text-indigo-100 font-semibold text-lg">2ºE - CEPA Paulo Freire</div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="relative z-10 max-w-7xl mx-auto mb-6 text-center">
+        <h1 class="font-display text-4xl md:text-6xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 floating">
+            GEO MASTER
+        </h1>
+        <p class="text-slate-400 text-lg">Empareja capitales y localiza países en el mapa</p>
+    </header>
+
+    <!-- Phase Indicators -->
+    <div class="relative z-10 max-w-4xl mx-auto mb-6">
+        <div class="flex justify-center gap-4">
+            <div id="phase-1" class="phase-indicator phase-active glass-panel rounded-full px-6 py-3 flex items-center gap-2 border border-indigo-500/30">
+                <span class="bg-indigo-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">1</span>
+                <span class="font-semibold">Emparejar</span>
+            </div>
+            <div class="text-slate-500 flex items-center">→</div>
+            <div id="phase-2" class="phase-indicator glass-panel rounded-full px-6 py-3 flex items-center gap-2 border border-transparent opacity-50">
+                <span class="bg-slate-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">2</span>
+                <span class="font-semibold">Localizar</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Container -->
+    <main class="relative z-10 max-w-7xl mx-auto">
+        
+        <!-- Stats Bar -->
+        <div class="glass-panel rounded-2xl p-4 md:p-6 mb-6 flex flex-wrap justify-between items-center gap-4">
+            <div class="flex items-center gap-4 md:gap-6">
+                <div class="text-center">
+                    <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">Tiempo</div>
+                    <div id="timer" class="font-display text-2xl md:text-3xl font-bold text-indigo-400">00:00</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">Progreso</div>
+                    <div class="font-display text-2xl md:text-3xl font-bold text-emerald-400">
+                        <span id="matches-count">0</span><span class="text-slate-600">/</span><span id="total-pairs">20</span>
+                    </div>
+                </div>
+                <div class="text-center">
+                    <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">Puntuación</div>
+                    <div id="score" class="font-display text-2xl md:text-3xl font-bold text-yellow-400">0</div>
+                </div>
+                <div class="text-center hidden md:block">
+                    <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">Precisión</div>
+                    <div id="accuracy" class="font-display text-2xl md:text-3xl font-bold text-pink-400">0%</div>
+                </div>
+            </div>
+            
+            <div class="flex gap-2">
+                <button onclick="game.restart()" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 transition-colors font-semibold text-sm uppercase tracking-wider shadow-lg shadow-indigo-500/30">
+                    Reiniciar
+                </button>
+            </div>
+        </div>
+
+        <!-- Phase 1: Cards -->
+        <div id="phase-cards" class="fade-in">
+            <div class="text-center mb-4">
+                <p class="text-slate-300">Selecciona un <span class="text-indigo-400 font-bold">PAÍS</span> y luego su <span class="text-pink-400 font-bold">CAPITAL</span></p>
+            </div>
+            <div id="game-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
+                <!-- Cards generated by JS -->
+            </div>
+        </div>
+
+        <!-- Phase 2: Map -->
+        <div id="phase-map" class="hidden fade-in">
+            <div class="text-center mb-4">
+                <p class="text-slate-300 text-lg">Haz clic en el mapa donde se ubica: <span id="target-country" class="text-yellow-400 font-bold text-2xl block mt-2"></span></p>
+                <p class="text-sm text-slate-400 mt-2">Precisión: <span id="distance-feedback" class="text-emerald-400 font-semibold">Esperando clic...</span></p>
+            </div>
+            
+            <div class="glass-panel rounded-2xl p-4 relative">
+                <div id="map-wrapper" class="map-container rounded-xl overflow-hidden relative">
+                    <!-- Map Image LOCAL -->
+                    <img id="asia-map" 
+                         src="mapa-asia.jpg" 
+                         alt="Mapa Político de Asia" 
+                         class="w-full h-auto block relative z-10"
+                         onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22800%22 height=%22600%22%3E%3Crect fill=%22%23e0f2fe%22 width=%22800%22 height=%22600%22/%3E%3Ctext x=%22400%22 y=%22280%22 font-family=%22Arial%22 font-size=%2220%22 fill=%2203669%22 text-anchor=%22middle%22%3ENo se encuentra la imagen%3C/text%3E%3Ctext x=%22400%22 y=%22320%22 font-family=%22Arial%22 font-size=%2216%22 fill=%2364748b%22 text-anchor=%22middle%22%3EAsegúrate de subir mapa-asia.jpg%3C/text%3E%3C/svg%3E'">
+                    
+                    <!-- Click overlay -->
+                    <div id="map-overlay" class="absolute inset-0 cursor-crosshair z-20"></div>
+                    
+                    <!-- Markers container -->
+                    <div id="markers-container" class="absolute inset-0 pointer-events-none z-30"></div>
+                </div>
+                
+                <div class="mt-4 flex justify-between items-center flex-wrap gap-2">
+                    <div class="text-sm text-slate-400">
+                        Distancia máxima para 100 pts: <span class="text-white font-bold">500 km</span>
+                    </div>
+                    <button onclick="game.skipMap()" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 transition-colors text-sm border border-slate-600">
+                        Saltar ubicación (-50 pts)
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer con autor -->
+    <footer class="relative z-10 max-w-7xl mx-auto mt-12 text-center pb-8">
+        <div class="glass-panel rounded-2xl p-6 inline-block">
+            <p class="text-slate-400 text-sm">Proyecto educativo desarrollado por</p>
+            <p class="text-white font-bold text-lg mt-1">Iván Carbonell — 2ºE CEPA Paulo Freire</p>
+            <p class="text-indigo-400 text-xs mt-2">© 2025 — Geografía de Asia</p>
+        </div>
+    </footer>
+
+    <script>
+        const pairs = [
+            { country: 'Afganistán', capital: 'Kabul', countryId: 1, capitalId: 'B', coords: { x: 42, y: 48 } },
+            { country: 'Arabia Saudí', capital: 'Riad', countryId: 2, capitalId: 'J', coords: { x: 32, y: 60 } },
+            { country: 'Bangladesh', capital: 'Dhaka', countryId: 3, capitalId: 'S', coords: { x: 68, y: 54 } },
+            { country: 'China', capital: 'Beijing (Pekín)', countryId: 4, capitalId: 'D', coords: { x: 78, y: 40 } },
+            { country: 'Corea del Norte', capital: 'Pyongyang', countryId: 5, capitalId: 'M', coords: { x: 85, y: 38 } },
+            { country: 'Corea del Sur', capital: 'Seúl', countryId: 6, capitalId: 'F', coords: { x: 88, y: 41 } },
+            { country: 'Filipinas', capital: 'Manila', countryId: 7, capitalId: 'H', coords: { x: 88, y: 64 } },
+            { country: 'India', capital: 'Nueva Delhi', countryId: 8, capitalId: 'T', coords: { x: 55, y: 54 } },
+            { country: 'Indonesia', capital: 'Yakarta', countryId: 9, capitalId: 'I', coords: { x: 80, y: 80 } },
+            { country: 'Irán', capital: 'Teherán', countryId: 10, capitalId: 'K', coords: { x: 36, y: 47 } },
+            { country: 'Iraq', capital: 'Bagdad', countryId: 11, capitalId: 'L', coords: { x: 34, y: 49 } },
+            { country: 'Japón', capital: 'Tokio', countryId: 12, capitalId: 'A', coords: { x: 92, y: 40 } },
+            { country: 'Kazajistán', capital: 'Astaná', countryId: 13, capitalId: 'R', coords: { x: 48, y: 34 } },
+            { country: 'Malasia', capital: 'Kuala Lumpur', countryId: 14, capitalId: 'N', coords: { x: 76, y: 72 } },
+            { country: 'Myanmar', capital: 'Naypyidaw', countryId: 15, capitalId: 'P', coords: { x: 70, y: 58 } },
+            { country: 'Pakistán', capital: 'Islamabad', countryId: 16, capitalId: 'C', coords: { x: 46, y: 50 } },
+            { country: 'Siria', capital: 'Damasco', countryId: 17, capitalId: 'O', coords: { x: 30, y: 45 } },
+            { country: 'Tailandia', capital: 'Bangkok', countryId: 18, capitalId: 'E', coords: { x: 73, y: 62 } },
+            { country: 'Taiwán', capital: 'Taipéi', countryId: 19, capitalId: 'Q', coords: { x: 85, y: 50 } },
+            { country: 'Vietnam', capital: 'Hanoi', countryId: 20, capitalId: 'G', coords: { x: 78, y: 56 } }
+        ];
+
+        class Game {
+            constructor() {
+                this.selectedCards = [];
+                this.matchedPairs = 0;
+                this.currentPair = null;
+                this.score = 0;
+                this.totalDistance = 0;
+                this.mapAttempts = 0;
+                this.isProcessing = false;
+                this.timer = 0;
+                this.timerInterval = null;
+                this.cards = [];
+                this.phase = 1;
+                
+                this.init();
+            }
+
+            init() {
+                this.createCards();
+                this.startTimer();
+                this.updateStats();
+                this.setupMap();
+            }
+
+            createCards() {
+                const grid = document.getElementById('game-grid');
+                grid.innerHTML = '';
+                this.cards = [];
+
+                pairs.forEach(pair => {
+                    this.cards.push({
+                        type: 'country',
+                        text: pair.country,
+                        id: pair.countryId,
+                        matchId: pair.capitalId,
+                        displayNum: pair.countryId + '.',
+                        coords: pair.coords
+                    });
+                    
+                    this.cards.push({
+                        type: 'capital',
+                        text: pair.capital,
+                        id: pair.capitalId,
+                        matchId: pair.countryId,
+                        displayNum: pair.capitalId + '.',
+                        coords: pair.coords
+                    });
+                });
+
+                this.shuffle();
+            }
+
+            shuffle() {
+                for (let i = this.cards.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [this.cards[i], this.cards[j]] = [this.cards[j], this.cards[i]];
+                }
+                this.render();
+            }
+
+            render() {
+                const grid = document.getElementById('game-grid');
+                grid.innerHTML = '';
+
+                this.cards.forEach((card, index) => {
+                    const cardEl = document.createElement('div');
+                    cardEl.className = `card glass-panel rounded-xl p-4 min-h-[100px] flex flex-col justify-center items-center text-center select-none border-2 border-transparent`;
+                    cardEl.dataset.index = index;
+                    
+                    const isCountry = card.type === 'country';
+                    const badgeColor = isCountry ? 'bg-indigo-500/20 text-indigo-300' : 'bg-pink-500/20 text-pink-300';
+                    
+                    cardEl.innerHTML = `
+                        <div class="text-xs font-bold ${badgeColor} px-2 py-1 rounded-full mb-1 uppercase">${isCountry ? 'País' : 'Capital'}</div>
+                        <div class="font-display text-base font-bold leading-tight">${card.text}</div>
+                        <div class="absolute top-2 right-2 text-xs text-slate-500 font-mono">${card.displayNum}</div>
+                    `;
+
+                    cardEl.addEventListener('click', () => this.handleCardClick(index));
+                    grid.appendChild(cardEl);
+                });
+            }
+
+            handleCardClick(index) {
+                if (this.isProcessing || this.phase !== 1) return;
+                
+                const cardEl = document.querySelector(`[data-index="${index}"]`);
+                if (cardEl.classList.contains('matched') || cardEl.classList.contains('selected')) return;
+
+                cardEl.classList.add('selected');
+                this.selectedCards.push({ index, element: cardEl, data: this.cards[index] });
+
+                if (this.selectedCards.length === 2) {
+                    this.checkMatch();
+                }
+            }
+
+            checkMatch() {
+                this.isProcessing = true;
+                const [card1, card2] = this.selectedCards;
+                
+                const isMatch = (card1.data.type === 'country' && card2.data.type === 'capital' && card1.data.id === card2.data.matchId) ||
+                               (card1.data.type === 'capital' && card2.data.type === 'country' && card1.data.matchId === card2.data.id);
+
+                if (isMatch) {
+                    setTimeout(() => {
+                        card1.element.classList.remove('selected');
+                        card2.element.classList.remove('selected');
+                        card1.element.classList.add('matched');
+                        card2.element.classList.add('matched');
+                        
+                        this.currentPair = card1.data.type === 'country' ? card1.data : card2.data;
+                        this.matchedPairs++;
+                        this.score += 100;
+                        this.updateStats();
+                        
+                        this.selectedCards = [];
+                        this.isProcessing = false;
+                        
+                        setTimeout(() => this.startMapPhase(), 600);
+                    }, 500);
+                } else {
+                    setTimeout(() => {
+                        card1.element.classList.add('error');
+                        card2.element.classList.add('error');
+                        
+                        setTimeout(() => {
+                            card1.element.classList.remove('selected', 'error');
+                            card2.element.classList.remove('selected', 'error');
+                            this.selectedCards = [];
+                            this.isProcessing = false;
+                        }, 800);
+                    }, 400);
+                }
+            }
+
+            startMapPhase() {
+                this.phase = 2;
+                document.getElementById('phase-1').classList.remove('phase-active');
+                document.getElementById('phase-1').style.opacity = '0.5';
+                document.getElementById('phase-2').classList.add('phase-active');
+                document.getElementById('phase-2').style.opacity = '1';
+                
+                document.getElementById('phase-cards').classList.add('hidden');
+                document.getElementById('phase-map').classList.remove('hidden');
+                
+                const countryName = this.currentPair.type === 'country' ? this.currentPair.text : pairs.find(p => p.countryId === this.currentPair.matchId).country;
+                document.getElementById('target-country').textContent = countryName;
+                document.getElementById('distance-feedback').textContent = 'Haz clic en el mapa para ubicar el país';
+                document.getElementById('distance-feedback').className = 'text-yellow-400';
+                
+                document.getElementById('markers-container').innerHTML = '';
+            }
+
+            setupMap() {
+                const mapOverlay = document.getElementById('map-overlay');
+                mapOverlay.addEventListener('click', (e) => this.handleMapClick(e));
+            }
+
+            handleMapClick(e) {
+                if (this.phase !== 2 || this.isProcessing) return;
+                
+                this.isProcessing = true;
+                
+                const rect = e.target.getBoundingClientRect();
+                const x = ((e.clientX - rect.left) / rect.width) * 100;
+                const y = ((e.clientY - rect.top) / rect.height) * 100;
+                
+                const correctCoords = this.currentPair.coords;
+                const distance = Math.sqrt(Math.pow(x - correctCoords.x, 2) + Math.pow(y - correctCoords.y, 2));
+                const kmDistance = Math.round(distance * 80);
+                
+                this.showMarkers(x, y, correctCoords.x, correctCoords.y);
+                this.evaluateDistance(kmDistance, distance);
+            }
+
+            showMarkers(userX, userY, correctX, correctY) {
+                const container = document.getElementById('markers-container');
+                container.innerHTML = '';
+                
+                const userMarker = document.createElement('div');
+                userMarker.className = 'map-marker user';
+                userMarker.style.left = userX + '%';
+                userMarker.style.top = userY + '%';
+                container.appendChild(userMarker);
+                
+                setTimeout(() => {
+                    const correctMarker = document.createElement('div');
+                    correctMarker.className = 'map-marker correct';
+                    correctMarker.style.left = correctX + '%';
+                    correctMarker.style.top = correctY + '%';
+                    container.appendChild(correctMarker);
+                    
+                    const line = document.createElement('div');
+                    line.className = 'distance-line';
+                    const dx = (correctX - userX);
+                    const dy = (correctY - userY);
+                    const length = Math.sqrt(dx*dx + dy*dy);
+                    const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+                    
+                    line.style.width = length + '%';
+                    line.style.left = userX + '%';
+                    line.style.top = userY + '%';
+                    line.style.transform = `rotate(${angle}deg)`;
+                    container.appendChild(line);
+                }, 300);
+            }
+
+            evaluateDistance(km, percentDistance) {
+                const feedback = document.getElementById('distance-feedback');
+                this.mapAttempts++;
+                
+                let points = 0;
+                let message = '';
+                let color = '';
+                
+                if (percentDistance < 4) {
+                    points = 100;
+                    message = `¡Excelente! ~${km} km (+100 pts)`;
+                    color = 'text-emerald-400';
+                    this.createConfetti(document.getElementById('map-wrapper'));
+                } else if (percentDistance < 8) {
+                    points = 50;
+                    message = `¡Bien! ~${km} km (+50 pts)`;
+                    color = 'text-yellow-400';
+                } else if (percentDistance < 15) {
+                    points = 25;
+                    message = `Aceptable: ~${km} km (+25 pts)`;
+                    color = 'text-orange-400';
+                } else {
+                    points = 10;
+                    message = `Lejos: ~${km} km (+10 pts)`;
+                    color = 'text-red-400';
+                }
+                
+                this.score += points;
+                this.totalDistance += km;
+                this.updateStats();
+                
+                feedback.textContent = message;
+                feedback.className = color + ' font-bold';
+                
+                setTimeout(() => {
+                    this.isProcessing = false;
+                    if (this.matchedPairs < pairs.length) {
+                        this.returnToCards();
+                    } else {
+                        this.victory();
+                    }
+                }, 2500);
+            }
+
+            skipMap() {
+                this.score = Math.max(0, this.score - 50);
+                this.mapAttempts++;
+                this.updateStats();
+                document.getElementById('distance-feedback').textContent = 'Saltado (-50 pts)';
+                document.getElementById('distance-feedback').className = 'text-red-400 font-bold';
+                
+                setTimeout(() => {
+                    this.isProcessing = false;
+                    if (this.matchedPairs < pairs.length) {
+                        this.returnToCards();
+                    } else {
+                        this.victory();
+                    }
+                }, 1000);
+            }
+
+            returnToCards() {
+                this.phase = 1;
+                document.getElementById('phase-2').classList.remove('phase-active');
+                document.getElementById('phase-2').style.opacity = '0.5';
+                document.getElementById('phase-1').classList.add('phase-active');
+                document.getElementById('phase-1').style.opacity = '1';
+                
+                document.getElementById('phase-map').classList.add('hidden');
+                document.getElementById('phase-cards').classList.remove('hidden');
+            }
+
+            createConfetti(element) {
+                const rect = element.getBoundingClientRect();
+                for (let i = 0; i < 15; i++) {
+                    const confetti = document.createElement('div');
+                    confetti.className = 'confetti';
+                    confetti.style.left = (rect.left + rect.width / 2) + 'px';
+                    confetti.style.top = (rect.top + rect.height / 2) + 'px';
+                    confetti.style.backgroundColor = ['#22c55e', '#eab308', '#6366f1', '#ec4899'][Math.floor(Math.random() * 4)];
+                    document.body.appendChild(confetti);
+                    setTimeout(() => confetti.remove(), 3000);
+                }
+            }
+
+            startTimer() {
+                this.timerInterval = setInterval(() => {
+                    this.timer++;
+                    const mins = Math.floor(this.timer / 60).toString().padStart(2, '0');
+                    const secs = (this.timer % 60).toString().padStart(2, '0');
+                    document.getElementById('timer').textContent = `${mins}:${secs}`;
+                }, 1000);
+            }
+
+            updateStats() {
+                document.getElementById('matches-count').textContent = this.matchedPairs;
+                document.getElementById('score').textContent = this.score;
+                
+                const maxPossible = this.matchedPairs * 200;
+                const accuracy = maxPossible > 0 ? Math.round((this.score / maxPossible) * 100) : 0;
+                document.getElementById('accuracy').textContent = accuracy + '%';
+            }
+
+            victory() {
+                clearInterval(this.timerInterval);
+                
+                const mins = Math.floor(this.timer / 60).toString().padStart(2, '0');
+                const secs = (this.timer % 60).toString().padStart(2, '0');
+                document.getElementById('final-time').textContent = `${mins}:${secs}`;
+                document.getElementById('final-score').textContent = this.score;
+                
+                const avgDistance = this.mapAttempts > 0 ? Math.round(this.totalDistance / this.mapAttempts) : 0;
+                const accuracy = avgDistance < 500 ? 95 : avgDistance < 1000 ? 75 : avgDistance < 2000 ? 50 : 25;
+                document.getElementById('final-accuracy').textContent = accuracy + '%';
+
+                const modal = document.getElementById('victory-modal');
+                const content = document.getElementById('victory-content');
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    modal.classList.remove('opacity-0');
+                    content.classList.remove('scale-90');
+                    content.classList.add('scale-100');
+                }, 10);
+
+                for (let i = 0; i < 50; i++) {
+                    setTimeout(() => {
+                        const confetti = document.createElement('div');
+                        confetti.className = 'confetti';
+                        confetti.style.left = Math.random() * window.innerWidth + 'px';
+                        confetti.style.top = '-10px';
+                        confetti.style.backgroundColor = ['#6366f1', '#ec4899', '#22c55e', '#f59e0b', '#8b5cf6'][Math.floor(Math.random() * 5)];
+                        document.body.appendChild(confetti);
+                        setTimeout(() => confetti.remove(), 3000);
+                    }, i * 50);
+                }
+            }
+
+            restart() {
+                clearInterval(this.timerInterval);
+                this.selectedCards = [];
+                this.matchedPairs = 0;
+                this.currentPair = null;
+                this.score = 0;
+                this.totalDistance = 0;
+                this.mapAttempts = 0;
+                this.isProcessing = false;
+                this.timer = 0;
+                this.phase = 1;
+                
+                document.getElementById('timer').textContent = '00:00';
+                document.getElementById('phase-1').classList.add('phase-active');
+                document.getElementById('phase-1').style.opacity = '1';
+                document.getElementById('phase-2').classList.remove('phase-active');
+                document.getElementById('phase-2').style.opacity = '0.5';
+                
+                document.getElementById('phase-map').classList.add('hidden');
+                document.getElementById('phase-cards').classList.remove('hidden');
+                document.getElementById('markers-container').innerHTML = '';
+                
+                const modal = document.getElementById('victory-modal');
+                modal.classList.add('opacity-0');
+                setTimeout(() => modal.classList.add('hidden'), 500);
+                
+                this.init();
+            }
+        }
+
+        const game = new Game();
+    </script>
+</body>
+</html>
